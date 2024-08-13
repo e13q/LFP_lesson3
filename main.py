@@ -1,5 +1,8 @@
 import urllib3
 import requests
+from bs4 import BeautifulSoup
+from pathvalidate import sanitize_filename
+
 import os
 
 
@@ -16,6 +19,24 @@ def save_book(book, book_name):
         os.makedirs(SUB_DIR_NAME)
     with open(f"./{SUB_DIR_NAME}/{book_name}.txt", "wb") as f:
         f.write(book)
+        f.close()
+
+
+def get_title_and_author(response):
+    soup = BeautifulSoup(response.text, 'lxml')
+    title_and_author = soup.find(id='content').find('h1').text
+    title, author = tuple(title_and_author.split(' \xa0 :: \xa0 '))
+    return sanitize_filename(title), author
+
+
+def fetch_book_info(book_id):
+    url = f'https://tululu.org/b{book_id}/'
+    response = requests.get(
+        url
+    )
+    response.raise_for_status()
+    check_for_redirect(response)
+    return response
 
 
 def get_book(book_id):
@@ -36,7 +57,9 @@ if __name__ == '__main__':
     for book_id in range(1, 11):
         try:
             book = get_book(book_id)
-            save_book(book, book_id)
+            response_book_info = fetch_book_info(book_id)
+            title, author = get_title_and_author(response_book_info)
+            save_book(book, title)
         except (requests.exceptions.HTTPError):
             print(f'HTTPerror {requests.exceptions.HTTPError.response.text}')
         except (requests.exceptions.TooManyRedirects):
