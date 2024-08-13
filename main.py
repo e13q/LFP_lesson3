@@ -4,6 +4,7 @@ from bs4 import BeautifulSoup
 from pathvalidate import sanitize_filename
 
 import os
+import argparse
 
 
 SUB_DIR_NAME_BOOKS = 'Books'
@@ -97,21 +98,44 @@ def fetch_book(book_id):
     return response.content
 
 
+def save_book(id):
+    book = fetch_book(book_id)
+    book_page = fetch_book_page(book_id)
+    (
+        title, author, cover_path, comments, genres
+    ) = parse_book_page(book_page)
+    save_book_txt(book, title)
+    cover = fetch_book_cover(cover_path)
+    _, img_ext = tuple(cover_path.split('.'))
+    save_book_cover(cover, img_ext, title)
+    save_book_comments(comments, title)
+    save_book_genres(genres, title)
+
+
 if __name__ == '__main__':
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-    for book_id in range(1, 11):
+    parser = argparse.ArgumentParser(
+        description='Download books from https://tululu.org')
+    parser.add_argument(
+        'id_from',
+        help='Book id from',
+        nargs='?',
+        type=int,
+        default=1
+    )
+    parser.add_argument(
+        'id_to',
+        help='Book id to',
+        nargs='?',
+        type=int,
+        default=11
+    )
+    parser = parser.parse_args()
+    id_from = parser.id_from
+    id_to = parser.id_to
+    for book_id in range(id_from, id_to):
         try:
-            book = fetch_book(book_id)
-            book_page = fetch_book_page(book_id)
-            (
-                title, author, cover_path, comments, genres
-            ) = parse_book_page(book_page)
-            save_book_txt(book, title)
-            cover = fetch_book_cover(cover_path)
-            _, img_ext = tuple(cover_path.split('.'))
-            save_book_cover(cover, img_ext, title)
-            save_book_comments(comments, title)
-            save_book_genres(genres, title)
+            save_book(book_id)
         except (requests.exceptions.HTTPError):
             print(f'HTTPerror {requests.exceptions.HTTPError.response.text}')
         except (requests.exceptions.TooManyRedirects):
