@@ -1,5 +1,4 @@
 import urllib3
-import urllib.parse
 import requests
 from bs4 import BeautifulSoup
 from pathvalidate import sanitize_filename
@@ -8,20 +7,13 @@ import os
 
 
 SUB_DIR_NAME_BOOKS = 'Books'
-SUB_DIR_NAME_COVERS = 'Images'
+SUB_DIR_NAME_COVERS = 'Covers'
+SUB_DIR_NAME_COMMENTS = 'Comments'
 
 
 def check_for_redirect(response):
     if len(response.history) > 0:
         raise requests.exceptions.TooManyRedirects
-
-
-def save_book_txt(book, book_name):
-    if not os.path.exists(SUB_DIR_NAME_BOOKS):
-        os.makedirs(SUB_DIR_NAME_BOOKS)
-    with open(f"./{SUB_DIR_NAME_BOOKS}/{book_name}.txt", "wb") as f:
-        f.write(book)
-        f.close()
 
 
 def fetch_book_cover(cover_path):
@@ -31,15 +23,32 @@ def fetch_book_cover(cover_path):
     )
     response.raise_for_status()
     check_for_redirect(response)
-    return response.content    
+    return response.content
 
 
-def save_book_cover(cover, img_ext,book_name):
+def save_book_comments(comments, book_name):
+    if not os.path.exists(SUB_DIR_NAME_COMMENTS):
+        os.makedirs(SUB_DIR_NAME_COMMENTS)
+    with open(f"./{SUB_DIR_NAME_COMMENTS}/{book_name}.txt", "w") as file:
+        for comment in comments:
+            file.write(f'{comment}\n\n')
+        file.close()
+
+
+def save_book_cover(cover, img_ext, book_name):
     if not os.path.exists(SUB_DIR_NAME_COVERS):
         os.makedirs(SUB_DIR_NAME_COVERS)
-    with open(f"./{SUB_DIR_NAME_COVERS}/{book_name}.{img_ext}", "wb") as f:
-        f.write(cover)
-        f.close()
+    with open(f"./{SUB_DIR_NAME_COVERS}/{book_name}.{img_ext}", "wb") as file:
+        file.write(cover)
+        file.close()
+
+
+def save_book_txt(book, book_name):
+    if not os.path.exists(SUB_DIR_NAME_BOOKS):
+        os.makedirs(SUB_DIR_NAME_BOOKS)
+    with open(f"./{SUB_DIR_NAME_BOOKS}/{book_name}.txt", "wb") as file:
+        file.write(book)
+        file.close()
 
 
 def parse_book_page(book_page):
@@ -48,7 +57,11 @@ def parse_book_page(book_page):
     title, author = tuple(title_and_author.split(' \xa0 :: \xa0 '))
     title_safe = sanitize_filename(title)
     cover_path = soup.find(class_='bookimage').find('img')['src']
-    return title_safe, author, cover_path
+    comments_clogged = soup.find_all(class_='texts')
+    comments = []
+    for comment_clogged in comments_clogged:
+        comments.append(comment_clogged.find('span').text)
+    return title_safe, author, cover_path, comments
 
 
 def fetch_book_page(book_id):
@@ -80,11 +93,12 @@ if __name__ == '__main__':
         try:
             book = fetch_book(book_id)
             book_page = fetch_book_page(book_id)
-            title, author, cover_path = parse_book_page(book_page)
+            title, author, cover_path, comments = parse_book_page(book_page)
             save_book_txt(book, title)
             cover = fetch_book_cover(cover_path)
             _, img_ext = tuple(cover_path.split('.'))
             save_book_cover(cover, img_ext, title)
+            save_book_comments(comments, title)
         except (requests.exceptions.HTTPError):
             print(f'HTTPerror {requests.exceptions.HTTPError.response.text}')
         except (requests.exceptions.TooManyRedirects):
