@@ -128,12 +128,12 @@ if __name__ == '__main__':
         help='Book id to',
         nargs='?',
         type=int,
-        default=11
+        default=10
     )
     parser = parser.parse_args()
     id_from = parser.id_from
     id_to = parser.id_to
-    for book_id in range(id_from, id_to):
+    for book_id in range(id_from, id_to+1):
         try:
             save_book(book_id)
         except (requests.exceptions.HTTPError):
