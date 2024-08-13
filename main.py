@@ -9,6 +9,7 @@ import os
 SUB_DIR_NAME_BOOKS = 'Books'
 SUB_DIR_NAME_COVERS = 'Covers'
 SUB_DIR_NAME_COMMENTS = 'Comments'
+SUB_DIR_NAME_GENRES = 'Genres'
 
 
 def check_for_redirect(response):
@@ -24,6 +25,15 @@ def fetch_book_cover(cover_path):
     response.raise_for_status()
     check_for_redirect(response)
     return response.content
+
+
+def save_book_genres(genres, book_name):
+    if not os.path.exists(SUB_DIR_NAME_GENRES):
+        os.makedirs(SUB_DIR_NAME_GENRES)
+    with open(f"./{SUB_DIR_NAME_GENRES}/{book_name}.txt", "w") as file:
+        for genre in genres:
+            file.write(f'{genre}\n')
+        file.close()
 
 
 def save_book_comments(comments, book_name):
@@ -57,11 +67,11 @@ def parse_book_page(book_page):
     title, author = tuple(title_and_author.split(' \xa0 :: \xa0 '))
     title_safe = sanitize_filename(title)
     cover_path = soup.find(class_='bookimage').find('img')['src']
-    comments_clogged = soup.find_all(class_='texts')
-    comments = []
-    for comment_clogged in comments_clogged:
-        comments.append(comment_clogged.find('span').text)
-    return title_safe, author, cover_path, comments
+    comments_raw = soup.find_all(class_='texts')
+    comments = [comment_raw.find('span').text for comment_raw in comments_raw]
+    genres_raw = soup.find('span', class_='d_book').find_all('a')
+    genres = [genre_raw.text for genre_raw in genres_raw]
+    return title_safe, author, cover_path, comments, genres
 
 
 def fetch_book_page(book_id):
@@ -93,12 +103,15 @@ if __name__ == '__main__':
         try:
             book = fetch_book(book_id)
             book_page = fetch_book_page(book_id)
-            title, author, cover_path, comments = parse_book_page(book_page)
+            (
+                title, author, cover_path, comments, genres
+            ) = parse_book_page(book_page)
             save_book_txt(book, title)
             cover = fetch_book_cover(cover_path)
             _, img_ext = tuple(cover_path.split('.'))
             save_book_cover(cover, img_ext, title)
             save_book_comments(comments, title)
+            save_book_genres(genres, title)
         except (requests.exceptions.HTTPError):
             print(f'HTTPerror {requests.exceptions.HTTPError.response.text}')
         except (requests.exceptions.TooManyRedirects):
