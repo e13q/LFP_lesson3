@@ -14,7 +14,7 @@ SUB_DIR_NAME_GENRES = 'Genres'
 
 
 def check_for_redirect(response):
-    if len(response.history) > 0:
+    if response.history:
         raise requests.exceptions.TooManyRedirects
 
 
