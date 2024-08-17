@@ -2,10 +2,13 @@ import urllib3
 import requests
 from bs4 import BeautifulSoup
 from pathvalidate import sanitize_filename
+from urllib.parse import urljoin
 
 import os
 import argparse
 import time
+
+BASE_URL = 'https://tululu.org'
 
 
 def check_for_redirect(response):
@@ -45,16 +48,16 @@ def parse_book_page(book_page):
 
 
 def save_book(id):
-    book = fetch_data('https://tululu.org/txt.php', {'id': book_id})
+    book = fetch_data(urljoin(BASE_URL, '/txt.php'), {'id': book_id})
     if not book:
         return
-    book_page = fetch_data(f'https://tululu.org/b{book_id}/', is_text=True)
+    book_page = fetch_data(urljoin(BASE_URL, f'/b{book_id}/'), is_text=True)
     if not book_page:
         return
     (
         title, author, cover_path, comments, genres
     ) = parse_book_page(book_page)
-    cover = fetch_data(f'https://tululu.org{cover_path}')
+    cover = fetch_data(urljoin(BASE_URL, cover_path))
     _, img_ext = tuple(cover_path.split('.'))
     save_object(book, 'Books', title, 'txt')
     save_object(cover, 'Covers', title, img_ext)
