@@ -7,6 +7,7 @@ from urllib.parse import urljoin
 import os
 import argparse
 import time
+from tqdm.auto import tqdm
 
 BASE_URL = 'https://tululu.org'
 
@@ -74,27 +75,26 @@ def fetch_data(url, params=None, is_text=False, retries=3, delay=4):
                 return response.text
             return response.content
         except (requests.ConnectionError, requests.Timeout):
-            print(
+            tqdm.write(
                 f'An attempt to connect {attempt + 1} of {retries} failed'
             )
             if attempt < retries - 1:
                 time.sleep(delay)
             else:
-                print('All attempts have been exhausted.')
+                tqdm.write('All attempts have been exhausted.')
                 return None
         except requests.exceptions.HTTPError as e:
-            print(f'HTTPerror {e}')
+            tqdm.write(f'HTTPerror {e}')
             return None
         except requests.exceptions.TooManyRedirects:
-            print(f'Website page for book id {book_id} has been moved')
+            tqdm.write(f'Webpage for id {params.get('id')} has been moved')
             return None
         except requests.RequestException as e:
-            print(f'Request exception: {e}')
+            tqdm.write(f'Request exception: {e}')
             return None
 
 
-if __name__ == '__main__':
-    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+def main():
     parser = argparse.ArgumentParser(
         description='Download books from https://tululu.org')
     parser.add_argument(
@@ -114,5 +114,12 @@ if __name__ == '__main__':
     parser = parser.parse_args()
     id_from = parser.id_from
     id_to = parser.id_to
-    for book_id in range(id_from, id_to+1):
+    for book_id in tqdm(
+        range(id_from, id_to+1), ascii=True, desc='Download books'
+    ):
         save_book(book_id)
+
+
+if __name__ == '__main__':
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+    main()
