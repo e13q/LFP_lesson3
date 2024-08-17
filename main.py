@@ -44,7 +44,7 @@ def parse_book_page(book_page):
     return title_safe, author, cover_path, comments, genres
 
 
-def save_book(id):
+def save_book(book_id):
     book = fetch_data(
         urljoin(BASE_URL, '/txt.php'), {'id': book_id}, is_text=True
     )
