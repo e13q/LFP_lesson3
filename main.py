@@ -7,49 +7,28 @@ import os
 import argparse
 import time
 
-SUB_DIR_NAME_BOOKS = 'Books'
-SUB_DIR_NAME_COVERS = 'Covers'
-SUB_DIR_NAME_COMMENTS = 'Comments'
-SUB_DIR_NAME_GENRES = 'Genres'
-
 
 def check_for_redirect(response):
     if response.history:
         raise requests.exceptions.TooManyRedirects
 
 
-def save_book_genres(genres, book_name):
-    if not os.path.exists(SUB_DIR_NAME_GENRES):
-        os.makedirs(SUB_DIR_NAME_GENRES)
-    with open(f"./{SUB_DIR_NAME_GENRES}/{book_name}.txt", "w") as file:
-        for genre in genres:
-            file.write(f'{genre}\n')
-        file.close()
-
-
-def save_book_comments(comments, book_name):
-    if not os.path.exists(SUB_DIR_NAME_COMMENTS):
-        os.makedirs(SUB_DIR_NAME_COMMENTS)
-    with open(f"./{SUB_DIR_NAME_COMMENTS}/{book_name}.txt", "w") as file:
-        for comment in comments:
-            file.write(f'{comment}\n\n')
-        file.close()
-
-
-def save_book_cover(cover, img_ext, book_name):
-    if not os.path.exists(SUB_DIR_NAME_COVERS):
-        os.makedirs(SUB_DIR_NAME_COVERS)
-    with open(f"./{SUB_DIR_NAME_COVERS}/{book_name}.{img_ext}", "wb") as file:
-        file.write(cover)
-        file.close()
-
-
-def save_book_txt(book, book_name):
-    if not os.path.exists(SUB_DIR_NAME_BOOKS):
-        os.makedirs(SUB_DIR_NAME_BOOKS)
-    with open(f"./{SUB_DIR_NAME_BOOKS}/{book_name}.txt", "wb") as file:
-        file.write(book)
-        file.close()
+def save_object(object, directory, title, type):
+    os.makedirs(directory, exist_ok=True)
+    if type == 'txt':
+        write_type = 'w'
+    else:
+        write_type = 'wb'
+    with open(f"./{directory}/{title}.{type}", write_type) as file:
+        if object.__class__ == list:
+            for sub_object in object:
+                if write_type == 'w' and sub_object.__class__ == bytes:
+                    sub_object = sub_object.decode()
+                file.write(f'{sub_object}\n\n')
+        else:
+            if write_type == 'w' and object.__class__ == bytes:
+                object = object.decode()
+            file.write(object)
 
 
 def parse_book_page(book_page):
@@ -77,10 +56,10 @@ def save_book(id):
     ) = parse_book_page(book_page)
     cover = fetch_data(f'https://tululu.org{cover_path}')
     _, img_ext = tuple(cover_path.split('.'))
-    save_book_txt(book, title)
-    save_book_cover(cover, img_ext, title)
-    save_book_comments(comments, title)
-    save_book_genres(genres, title)
+    save_object(book, 'Books', title, 'txt')
+    save_object(cover, 'Covers', title, img_ext)
+    save_object(comments, 'Comments', title, 'txt')
+    save_object(genres, 'Genres', title, 'txt')
 
 
 def fetch_data(url, params=None, is_text=False, retries=3, delay=4):
