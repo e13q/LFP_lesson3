@@ -5,7 +5,7 @@ from pathvalidate import sanitize_filename
 
 import os
 import argparse
-
+import time
 
 SUB_DIR_NAME_BOOKS = 'Books'
 SUB_DIR_NAME_COVERS = 'Covers'
@@ -16,16 +16,6 @@ SUB_DIR_NAME_GENRES = 'Genres'
 def check_for_redirect(response):
     if response.history:
         raise requests.exceptions.TooManyRedirects
-
-
-def fetch_book_cover(cover_path):
-    cover_url = f'https://tululu.org{cover_path}'
-    response = requests.get(
-        url=cover_url
-    )
-    response.raise_for_status()
-    check_for_redirect(response)
-    return response.content
 
 
 def save_book_genres(genres, book_name):
@@ -75,41 +65,51 @@ def parse_book_page(book_page):
     return title_safe, author, cover_path, comments, genres
 
 
-def fetch_book_page(book_id):
-    url = f'https://tululu.org/b{book_id}/'
-    response = requests.get(
-        url
-    )
-    response.raise_for_status()
-    check_for_redirect(response)
-    return response.text
-
-
-def fetch_book(book_id):
-    url = 'https://tululu.org/txt.php'
-    response = requests.get(
-        url,
-        params={
-            'id': book_id
-        }
-    )
-    response.raise_for_status()
-    check_for_redirect(response)
-    return response.content
-
-
 def save_book(id):
-    book = fetch_book(book_id)
-    book_page = fetch_book_page(book_id)
+    book = fetch_data('https://tululu.org/txt.php', {'id': book_id})
+    if not book:
+        return
+    book_page = fetch_data(f'https://tululu.org/b{book_id}/', is_text=True)
+    if not book_page:
+        return
     (
         title, author, cover_path, comments, genres
     ) = parse_book_page(book_page)
-    save_book_txt(book, title)
-    cover = fetch_book_cover(cover_path)
+    cover = fetch_data(f'https://tululu.org{cover_path}')
     _, img_ext = tuple(cover_path.split('.'))
+    save_book_txt(book, title)
     save_book_cover(cover, img_ext, title)
     save_book_comments(comments, title)
     save_book_genres(genres, title)
+
+
+def fetch_data(url, params=None, is_text=False, retries=3, delay=4):
+    for attempt in range(retries):
+        try:
+            response = requests.get(url, params, timeout=10)
+            response.raise_for_status()
+            check_for_redirect(response)
+            if is_text:
+                return response.text
+            return response.content
+        except (requests.ConnectionError, requests.Timeout):
+            print(
+                f'An attempt to connect {attempt + 1} of {retries} failed'
+            )
+            if attempt < retries - 1:
+                time.sleep(delay)
+            else:
+                print('All attempts have been exhausted.')
+                return None
+        except requests.exceptions.HTTPError as e:
+            print(f'HTTPerror {e}')
+            return None
+        except requests.exceptions.TooManyRedirects:
+            print(f'Website page for book id {book_id} has been moved')
+            return None
+        except requests.RequestException as e:
+            print(f'Request exception: {e}')
+            return None
 
 
 if __name__ == '__main__':
@@ -134,9 +134,4 @@ if __name__ == '__main__':
     id_from = parser.id_from
     id_to = parser.id_to
     for book_id in range(id_from, id_to+1):
-        try:
-            save_book(book_id)
-        except (requests.exceptions.HTTPError):
-            print(f'HTTPerror {requests.exceptions.HTTPError.response.text}')
-        except (requests.exceptions.TooManyRedirects):
-            print(f'Website page for book id {book_id} has been moved')
+        save_book(book_id)
