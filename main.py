@@ -16,21 +16,18 @@ def check_for_redirect(response):
         raise requests.exceptions.TooManyRedirects
 
 
-def save_object(object, directory, title, type):
+def save_object(object, directory, title, file_type='txt'):
+    if not object:
+        return
     os.makedirs(directory, exist_ok=True)
-    if type == 'txt':
-        write_type = 'w'
-    else:
+    write_type = 'w'
+    if file_type != 'txt':
         write_type = 'wb'
-    with open(f"./{directory}/{title}.{type}", write_type) as file:
+    with open(f"./{directory}/{title}.{file_type}", write_type) as file:
         if object.__class__ == list:
             for sub_object in object:
-                if write_type == 'w' and sub_object.__class__ == bytes:
-                    sub_object = sub_object.decode()
                 file.write(f'{sub_object}\n\n')
         else:
-            if write_type == 'w' and object.__class__ == bytes:
-                object = object.decode()
             file.write(object)
 
 
@@ -48,7 +45,9 @@ def parse_book_page(book_page):
 
 
 def save_book(id):
-    book = fetch_data(urljoin(BASE_URL, '/txt.php'), {'id': book_id})
+    book = fetch_data(
+        urljoin(BASE_URL, '/txt.php'), {'id': book_id}, is_text=True
+    )
     if not book:
         return
     book_page = fetch_data(urljoin(BASE_URL, f'/b{book_id}/'), is_text=True)
@@ -59,10 +58,10 @@ def save_book(id):
     ) = parse_book_page(book_page)
     cover = fetch_data(urljoin(BASE_URL, cover_path))
     _, img_ext = tuple(cover_path.split('.'))
-    save_object(book, 'Books', title, 'txt')
+    save_object(book, 'Books', title)
     save_object(cover, 'Covers', title, img_ext)
-    save_object(comments, 'Comments', title, 'txt')
-    save_object(genres, 'Genres', title, 'txt')
+    save_object(comments, 'Comments', title)
+    save_object(genres, 'Genres', title)
 
 
 def fetch_data(url, params=None, is_text=False, retries=3, delay=4):
