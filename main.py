@@ -47,17 +47,22 @@ def parse_book_page(book_page):
 
 def save_book(book_id):
     book = fetch_data(
-        urljoin(BASE_URL, '/txt.php'), {'id': book_id}, is_text=True
+        urljoin(BASE_URL, '/txt.php'), {'id': book_id}
     )
     if not book:
         return
-    book_page = fetch_data(urljoin(BASE_URL, f'/b{book_id}/'), is_text=True)
+    else:
+        book = book.text
+    book_page_url = urljoin(BASE_URL, f'/b{book_id}/')
+    book_page = fetch_data(book_page_url)
     if not book_page:
         return
+    else:
+        book_page = book_page.text
     (
         title, author, cover_path, comments, genres
     ) = parse_book_page(book_page)
-    cover = fetch_data(urljoin(BASE_URL, cover_path))
+    cover = fetch_data(urljoin(book_page_url, cover_path)).content
     _, img_ext = tuple(cover_path.split('.'))
     save_object(book, 'Books', title)
     save_object(cover, 'Covers', title, img_ext)
@@ -65,15 +70,13 @@ def save_book(book_id):
     save_object(genres, 'Genres', title)
 
 
-def fetch_data(url, params=None, is_text=False, retries=3, delay=4):
+def fetch_data(url, params=None, retries=3, delay=4):
     for attempt in range(retries):
         try:
             response = requests.get(url, params, timeout=10)
             response.raise_for_status()
             check_for_redirect(response)
-            if is_text:
-                return response.text
-            return response.content
+            return response
         except (requests.ConnectionError, requests.Timeout):
             tqdm.write(
                 f'An attempt to connect {attempt + 1} of {retries} failed'
@@ -95,6 +98,7 @@ def fetch_data(url, params=None, is_text=False, retries=3, delay=4):
 
 
 def main():
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
     parser = argparse.ArgumentParser(
         description='Download books from https://tululu.org')
     parser.add_argument(
@@ -121,5 +125,4 @@ def main():
 
 
 if __name__ == '__main__':
-    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
     main()
